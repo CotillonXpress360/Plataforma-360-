@@ -1,41 +1,56 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [ principal ]   # <- usa 'main' si tu rama se llama main
+  workflow_dispatch:   # Permite ejecutarlo manualmente desde Actions
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+      # 1) Descargar tu código
       - uses: actions/checkout@v4
 
+      # 2) Configurar Node sin caché (para evitar el error de package-lock)
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      
-      - run: npm install
-      - run: npm run build
+          node-version: '20'
 
-      - run: npm i @capacitor/cli@^6 @capacitor/core@^6 @capacitor/android@^6
+      # 3) Instalar dependencias y construir la web
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
 
+      - name: Construir proyecto web
+        run: npm run build
+
+      # 4) Instalar Capacitor y Android
+      - name: Instalar Capacitor Android
+        run: |
+          npm i -D @capacitor/cli@^6
+          npm i @capacitor/core@^6 @capacitor/android@^6
+
+      # 5) Configurar Java y Android SDK
       - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
       - uses: android-actions/setup-android@v3
 
-      # Asegura la plataforma Android y sincroniza
-      - run: npx cap add android || true
-      - run: npx cap sync android
+      # 6) Crear y sincronizar plataforma Android
+      - name: Asegurar plataforma Android
+        run: npx cap add android || true
 
-      # Compila APK debug
-      - run: cd android && ./gradlew assembleDebug
+      - name: Sincronizar Capacitor
+        run: npx cap sync android
 
-      # Sube el APK como artefacto descargable
-      - uses: actions/upload-artifact@v4
+      # 7) Construir APK de depuración
+      - name: Compilar APK Debug
+        run: cd android && ./gradlew assembleDebug
+
+      # 8) Subir el APK como artefacto descargable
+      - name: Subir APK compilado
+        uses: actions/upload-artifact@v4
         with:
           name: booth360-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
